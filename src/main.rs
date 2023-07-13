@@ -214,7 +214,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
     // - check the value of correlated column
     // for all the rows, id2 should be equal to id1 * 7
     {
-        let mut rows = conn.query_iter("select count() from test_order where id2 != id1 * 7 limit 1")
+        let mut rows = conn.query_iter("select count() from test_order where id2 != id1 * 7")
             .await?;
         let r = rows.next().await.unwrap().unwrap();
         let count: (i64, ) = r.try_into()?;
