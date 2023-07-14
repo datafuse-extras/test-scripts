@@ -47,3 +47,5 @@ create table test_order (
 
 create table random_source  like test_order Engine = Random;
 
+truncate table system.metrics;
+
