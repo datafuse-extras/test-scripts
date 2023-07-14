@@ -42,7 +42,7 @@ create table test_order (
 
                             i int
 
-) CLUSTER BY(to_yyyymmdd(insert_time), id);
+) CLUSTER BY(to_yyyymmdd(insert_time), id) bloom_index_columns='insert_time,id';
 
 
 create table random_source  like test_order Engine = Random;

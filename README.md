@@ -110,7 +110,7 @@ after the setup phase, at any time, the following invariant should hold:
 
 - kick off the test
 
-  `cargo run -r [ITERATION]`
+  `cargo run -r -- [ITERATION]`
 
    Where the `[ITERATION]` is the number of iterations to run the test for. 
    If not specified, the default is 1000 iterations.

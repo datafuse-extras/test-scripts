@@ -266,6 +266,20 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
     info!("======     PASSED      ====");
     info!("===========================");
 
+    info!("                           ");
+    info!("                           ");
+
+    info!("========METRICS============");
+    let mut rows = conn.query_iter("select metric, value from system.metrics where metric like '%replace%'  or metric like '%conflict%' order by metric")
+        .await?;
+    while let Some(r) =  rows.next().await {
+        let (metric, value): (String, String) = r.unwrap().try_into()?;
+        info!("{metric} : {value}");
+    }
+    info!("===========================");
+
+
+
     Ok(())
 }
 
