@@ -278,6 +278,26 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
     }
     info!("===========================");
 
+    info!("                           ");
+    info!("                           ");
+
+    info!("======CLUSTERING INFO======");
+    let mut rows = conn.query_iter("select * from clustering_information('default', 'test_order')")
+        .await?;
+    while let Some(r) =  rows.next().await {
+        let (cluster_key, block_count, constant_block_count, unclustered_block_count,
+            average_overlaps, average_depth, block_depth_histogram
+        ): (String, u64, u64, u64, f64, f64, String) = r.unwrap().try_into()?;
+        info!("cluster_key : {cluster_key}");
+        info!("block_count: {block_count}");
+        info!("constant_block_count: {constant_block_count}");
+        info!("unclustered_block_count: {unclustered_block_count}");
+        info!("average_overlaps: {average_overlaps}");
+        info!("average_depth: {average_depth}");
+        info!("block_depth_histogram: {block_depth_histogram}");
+    }
+    info!("===========================");
+
 
 
     Ok(())
