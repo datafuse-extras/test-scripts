@@ -69,10 +69,16 @@ async fn execute(dsn: &str, iterations: u32) -> Result<u32> {
             async move {
                 let mut num_of_success = 0;
                 for batch_id in 0..iterations {
+                    info!("executing batch: {}", batch_id);
                     let success = exec_replace(&dsn, batch_id).await?;
                     if success {
                         num_of_success += 1;
                     }
+
+                    if batch_id %  7 == 0 {
+                        exec_replace_conflict(&dsn, batch_id).await?;
+                    }
+
                 }
                 Ok::<_, anyhow::Error>(num_of_success)
             }
@@ -114,6 +120,27 @@ async fn execute(dsn: &str, iterations: u32) -> Result<u32> {
     Ok(success_replace_stmts)
 }
 
+
+async fn exec_replace_conflict(dsn: &str, batch_id: u32) -> Result<bool> {
+    let conn = new_connection(dsn)?;
+    info!("executing replace (with conflict) batch : {}", batch_id);
+    let sql = format!(
+        "
+         replace into test_order on(id, insert_time)
+          select * from test_order where id1 = {batch_id} limit 500
+          ");
+    match conn.exec(&sql).await {
+        Ok(_) => {
+            info!("Ok. replace batch : {}", batch_id);
+            Ok(true)
+        }
+        Err(e) => {
+            // replace may be failed due to concurrent mutations (compact, purge, recluster)
+            info!("Err. replace batch : {}. {e}", batch_id);
+            Ok(false)
+        }
+    }
+}
 
 async fn exec_replace(dsn: &str, batch_id: u32) -> Result<bool> {
     let conn = new_connection(dsn)?;
