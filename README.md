@@ -14,7 +14,7 @@
 
 ### **`replace into`** routine
     
-  **for each iteration, 1000 random rows will be replaced into `test_order`, with the following arrangement**
+  **for each iteration, 1000 random rows will be replaced into `test_order`, with the following arrangements**
 
   - `on conflict` columns specified to 2 columns
    
@@ -22,11 +22,11 @@
    
   - values of two columns will be set correlated to value of current iteration
 
-  - failures during executing the `repalce into` statement will be ignored 
+  - failures during executing the `replace into` statement will be ignored 
    
-    Those failures are mainly due to the conflicts of mutations. 
+    those failures are mainly due to the conflicts of mutations. 
    
-    The case driver will record the number of failures thought, so that later in the verification phase, 
+    the case driver will record the number of failures thought, so that later in the verification phase, 
     the data can be verified more in detail.
 
 
@@ -76,6 +76,12 @@ Then the followings will be verified:
 - value of successfully executed replace into statements
  
    1. count of `test_order`should equal to the number of successfully executed `replace into` statements, multiplied by 1000.
+  
+      **caveat**: there might be false negative in this case
+   
+      failure of execution the `replace into` statement at **client** side, does not mean that the execution is definitely failed at **server** side(network error, etc).
+      
+      
 
    2. count of each distinct value of `id1` should equal to 1000, since for each iteration, 1000 rows are inserted with the same(but distinct) value of `id1`. 
 
