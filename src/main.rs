@@ -142,6 +142,8 @@ async fn exec_replace_conflict(dsn: &str, batch_ids: &[u32]) -> Result<bool> {
          ({sub_queries})
           ");
 
+    info!("sql is {}", sql);
+
     match conn.exec(&sql).await {
         Ok(_) => {
             info!("Ok. replace batch (with conflict) : [{}]", ids);

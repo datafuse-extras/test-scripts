@@ -43,17 +43,15 @@
 
  **For each 7 iterations, an extra action will be taken:**
 
- half of the rows inserted during this iteration will be replaced by them self.
+ data of 3 previous iterations will be replaced by them self, e.g.
 
  ~~~.sql
  replace into test_order on(id, insert_time)
-   select * from test_order where id1 = {current_iteration} limit 500
+   (select * from test_order where id1 = 27 
+     union all select * from test_order where id1 = 13 
+     union all select * from test_order where id1 = 9)
  ~~~
-
- So that we can make sure that during testing there are definitely some data will be updated (not just appended).
- 
-   
-    
+ as table data being compacted and re-clustered, this lead to data blocks being partially or totally updated.
    
 ### table maintenance routine
 
