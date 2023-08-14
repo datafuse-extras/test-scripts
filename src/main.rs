@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use databend_driver::new_connection;
@@ -236,7 +236,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
 
         let mut rows = conn.query_iter("select count() from test_order").await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32,) = r.try_into()?;
+        let count: (u32, ) = r.try_into()?;
         info!(
             "CHECK: value of successfully executed replace into statements: client {}, server {}",
             success_replace_stmts * 1000,
@@ -255,7 +255,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
             )
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32,) = r.try_into()?;
+        let count: (u32, ) = r.try_into()?;
         assert_eq!(0, count.0);
 
         // show the number of distinct value of id2
@@ -264,7 +264,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
             .query_iter("select count(distinct(id2)) from test_order")
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32,) = r.try_into()?;
+        let count: (u32, ) = r.try_into()?;
 
         assert_eq!(success_replace_stmts, count.0);
         info!(
@@ -280,7 +280,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
             .query_iter("select count() from test_order where id2 != id1 * 7")
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (i64,) = r.try_into()?;
+        let count: (i64, ) = r.try_into()?;
 
         info!("CHECK: value of correlated column");
 
