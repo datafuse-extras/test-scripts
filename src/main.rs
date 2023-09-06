@@ -189,7 +189,7 @@ async fn exec_table_maintenance(dsn: &str, batch_id: i32) -> Result<()> {
     info!("executing table maintenance batch : {}", batch_id);
     let conn = new_connection(dsn)?;
     let sqls = vec![
-        "select * from test_order ignore_result",
+        //"select * from test_order ignore_result",
         "optimize table test_order compact segment",
         "optimize table test_order compact",
         "optimize table test_order purge",
