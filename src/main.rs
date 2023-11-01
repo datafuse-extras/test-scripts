@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use anyhow::Result;
 use databend_driver::new_connection;
@@ -79,25 +79,25 @@ async fn execute(dsn: &str, iterations: u32) -> Result<u32> {
         }
     });
 
-    let shutdown = Arc::new(AtomicBool::new(false));
+    // let shutdown = Arc::new(AtomicBool::new(false));
 
     // background tasks to maintain the table
-    let maintain_handle = tokio::spawn({
-        let dsn = dsn.to_string();
-        let shutdown = shutdown.clone();
-        async move {
-            let mut batch_id = 0;
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                // we do not care if this fails
-                let _ = exec_table_maintenance(&dsn, batch_id).await;
-                batch_id += 1;
-            }
-            Ok::<_, anyhow::Error>(())
-        }
-    });
+    // let maintain_handle = tokio::spawn({
+    //     let dsn = dsn.to_string();
+    //     let shutdown = shutdown.clone();
+    //     async move {
+    //         let mut batch_id = 0;
+    //         loop {
+    //             if shutdown.load(Ordering::Relaxed) {
+    //                 break;
+    //             }
+    //             // we do not care if this fails
+    //             let _ = exec_table_maintenance(&dsn, batch_id).await;
+    //             batch_id += 1;
+    //         }
+    //         Ok::<_, anyhow::Error>(())
+    //     }
+    // });
 
     // join all the join handles
 
@@ -105,9 +105,9 @@ async fn execute(dsn: &str, iterations: u32) -> Result<u32> {
     let success_replace_stmts = replace_handle.await??;
 
     // then we shutdown the table maintenance tasks
-    shutdown.store(true, Ordering::Relaxed);
+    // shutdown.store(true, Ordering::Relaxed);
 
-    maintain_handle.await??;
+    // maintain_handle.await??;
 
     Ok(success_replace_stmts)
 }
@@ -133,13 +133,14 @@ async fn exec_replace_conflict(dsn: &str, batch_ids: &[u32]) -> Result<bool> {
 
     // replace these history data into the table (itself). while table being compacted and re-clustered
     // this may lead to partial and total block update.
-    let sql = format!("merge into test_order as t 
+    let sql = format!(
+        "merge into test_order as t 
                          using ({sub_query}) as s 
                          on t.id = s.id and t.insert_time = s.insert_time
-                         when matched then update *
+                         when matched then delete
                          when not matched then insert *
-                         ");
-
+                         "
+    );
 
     match conn.exec(&sql).await {
         Ok(_) => {
@@ -198,28 +199,28 @@ async fn exec_replace(dsn: &str, batch_id: u32) -> Result<bool> {
     }
 }
 
-async fn exec_table_maintenance(dsn: &str, batch_id: i32) -> Result<()> {
-    info!("executing table maintenance batch : {}", batch_id);
-    let conn = new_connection(dsn)?;
-    let sqls = vec![
-        //"select * from test_order ignore_result",
-        "optimize table test_order compact segment",
-        "optimize table test_order compact",
-        "optimize table test_order purge",
-        "alter table test_order recluster",
-    ];
-    for sql in sqls {
-        match conn.exec(sql).await {
-            Ok(_) => {
-                info!("Ok. maintenance batch : {}", batch_id);
-            }
-            Err(e) => {
-                info!("Err. maintenance batch : {}. {e}", batch_id);
-            }
-        }
-    }
-    Ok(())
-}
+// async fn exec_table_maintenance(dsn: &str, batch_id: i32) -> Result<()> {
+//     info!("executing table maintenance batch : {}", batch_id);
+//     let conn = new_connection(dsn)?;
+//     let sqls = vec![
+//         //"select * from test_order ignore_result",
+//         "optimize table test_order compact segment",
+//         "optimize table test_order compact",
+//         "optimize table test_order purge",
+//         "alter table test_order recluster",
+//     ];
+//     for sql in sqls {
+//         match conn.exec(sql).await {
+//             Ok(_) => {
+//                 info!("Ok. maintenance batch : {}", batch_id);
+//             }
+//             Err(e) => {
+//                 info!("Err. maintenance batch : {}. {e}", batch_id);
+//             }
+//         }
+//     }
+//     Ok(())
+// }
 
 async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
     info!("==========================");
@@ -249,7 +250,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
 
         let mut rows = conn.query_iter("select count() from test_order").await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32, ) = r.try_into()?;
+        let count: (u32,) = r.try_into()?;
         info!(
             "CHECK: value of successfully executed merge-into statements: client {}, server {}",
             success_replace_stmts * 1000,
@@ -262,43 +263,43 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
         let mut rows = conn
             .query_iter(
                 "
-            select count() from
-                (select count() a, id1 from test_order  group by id1)
-                where a != 1000",
+            select count() from test_order
+                ",
             )
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32, ) = r.try_into()?;
+        let count: (u32,) = r.try_into()?;
+        // conflict test deleted all data
         assert_eq!(0, count.0);
 
         // show the number of distinct value of id2
         // not required to be equal, since there might be communication failures
-        let mut rows = conn
-            .query_iter("select count(distinct(id2)) from test_order")
-            .await?;
-        let r = rows.next().await.unwrap().unwrap();
-        let count: (u32, ) = r.try_into()?;
+        // let mut rows = conn
+        //     .query_iter("select count(distinct(id2)) from test_order")
+        //     .await?;
+        // let r = rows.next().await.unwrap().unwrap();
+        // let count: (u32,) = r.try_into()?;
 
-        assert_eq!(success_replace_stmts, count.0);
-        info!(
-            "CHECK: distinct ids: client {}, server {}",
-            success_replace_stmts, count.0
-        );
+        // assert_eq!(success_replace_stmts, count.0);
+        // info!(
+        //     "CHECK: distinct ids: client {}, server {}",
+        //     success_replace_stmts, count.0
+        // );
     }
 
     // - check the value of correlated column
     // for all the rows, id2 should be equal to id1 * 7
-    {
-        let mut rows = conn
-            .query_iter("select count() from test_order where id2 != id1 * 7")
-            .await?;
-        let r = rows.next().await.unwrap().unwrap();
-        let count: (i64, ) = r.try_into()?;
+    // {
+    //     let mut rows = conn
+    //         .query_iter("select count() from test_order where id2 != id1 * 7")
+    //         .await?;
+    //     let r = rows.next().await.unwrap().unwrap();
+    //     let count: (i64,) = r.try_into()?;
 
-        info!("CHECK: value of correlated column");
+    //     info!("CHECK: value of correlated column");
 
-        assert_eq!(0, count.0);
-    }
+    //     assert_eq!(0, count.0);
+    // }
 
     // - full table scan, ensure that the table data is not damaged
     info!("CHECK: full table scanning");
