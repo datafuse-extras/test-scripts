@@ -69,11 +69,9 @@ async fn execute(dsn: &str, iterations: u32) -> Result<u32> {
                     num_of_success += 1;
                 }
 
-                if (batch_id + 1) % 7 == 0 {
-                    // introduce more conflicts if possible in on replace into stmt
-                    let ids = vec![batch_id, batch_id / 2, batch_id / 3];
-                    exec_replace_conflict(&dsn, &ids).await?;
-                }
+                // introduce more conflicts if possible in on replace into stmt
+                let ids = vec![batch_id];
+                exec_replace_conflict(&dsn, &ids).await?;
             }
             Ok::<_, anyhow::Error>(num_of_success)
         }
