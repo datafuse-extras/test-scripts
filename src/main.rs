@@ -158,12 +158,16 @@ async fn exec_replace(dsn: &str, batch_id: u32) -> Result<bool> {
 
     info!("executing merge-into batch : {}", batch_id);
     let batch_correlated_value = batch_id * 7;
-    //on(id, insert_time)
-    let sql = format!(
-        "
-         merge into test_order as t 
-          using (
-              select
+    let truncate_sql = "truncate table random_source_store";
+    match conn.exec(&truncate_sql).await {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("{:?}", e);
+        }
+    };
+
+    let insert_sql = format!(
+        "insert into random_source_store (select
                     id,
                     {batch_id} as id1,
                     {batch_correlated_value} as id2,
@@ -175,7 +179,21 @@ async fn exec_replace(dsn: &str, batch_id: u32) -> Result<bool> {
                     insert_time2,
                     insert_time3,
                     i
-              from random_source limit 1000
+              from random_source limit 1000)"
+    );
+
+    match conn.exec(&insert_sql).await {
+        Ok(_) => {}
+        Err(e) => {
+            panic!("{:?}", e);
+        }
+    };
+    //on(id, insert_time)
+    let sql = format!(
+        "
+         merge into test_order as t 
+          using (
+              select * from random_source_store
           ) as s
 
           on t.id = s.id and t.insert_time = s.insert_time
@@ -184,6 +202,7 @@ async fn exec_replace(dsn: &str, batch_id: u32) -> Result<bool> {
           when not matched then insert *
           "
     );
+
     match conn.exec(&sql).await {
         Ok(_) => {
             info!("Ok. merge-into batch : {}", batch_id);
