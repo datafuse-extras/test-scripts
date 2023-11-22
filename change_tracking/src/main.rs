@@ -25,8 +25,9 @@ struct Args {
     #[arg(long, default_value_t = 10)]
     times_consumption_per_stream: u32,
 
-    #[arg(long, default_value_t = true)]
-    ignore_stream_consumption_error: bool,
+    /// show stream consumption errors
+    #[arg(long, default_value_t = false)]
+    show_stream_consumption_errors: bool,
 }
 
 struct Driver {
@@ -142,11 +143,12 @@ impl Driver {
         for batch_id in 0..self.args.stream_consumption_concurrency {
             let conn = self.new_connection().await?;
             let iters = self.args.times_consumption_per_stream;
-            let show_err = self.args.ignore_stream_consumption_error;
+            let show_err = self.args.show_stream_consumption_errors;
             let join_handle = tokio::spawn({
                 let sql = sql.clone();
                 async move {
                     let mut sucess: u32 = 0;
+                    let step = (iters / 100).max(1);
                     for i in 0..iters {
                         if let Err(e) = conn.exec(&sql).await {
                             if show_err {
@@ -161,6 +163,16 @@ impl Driver {
                             }
                         } else {
                             sucess += 1;
+                        }
+
+                        if (i + 1) % step == 0 {
+                            info!(
+                                "exec: batch {}, stream {}, iter {}, progress {:.2}%",
+                                batch_id,
+                                stream_id,
+                                i,
+                                (i + 1) as f32 * 100.0 / iters as f32
+                            );
                         }
                     }
                     Ok::<_, anyhow::Error>(sucess)
@@ -190,9 +202,10 @@ impl Driver {
         let (sum,): (u64,) = row.unwrap().try_into().unwrap();
 
         info!("===========================");
-        info!("Sink table: number of rows: {count}");
+        info!("Sink table: row count: {count}");
         info!("Sink table: sum of column `c`: {sum}");
-        info!("===========================\n");
+        info!("===========================");
+        info!("");
 
         let mut diverses = Vec::new();
 
@@ -207,7 +220,10 @@ impl Driver {
                 .query_row(format!("select sum(c) from sink_{idx}").as_str())
                 .await?;
             let (s,): (u64,) = row.unwrap().try_into().unwrap();
-            info!("sink of derived stream {}: count {}, sum {} ", idx, c, s);
+            info!(
+                "sink of derived stream {}: row count {}, sum {} ",
+                idx, c, s
+            );
             if count == c && sum == s {
                 continue;
             } else {
@@ -215,8 +231,8 @@ impl Driver {
             }
         }
 
-        info!("===========================\n");
-
+        info!("===========================");
+        info!("");
 
         if diverses.is_empty() {
             info!("===========================");
@@ -227,7 +243,7 @@ impl Driver {
             info!("======     FAILED      ====");
             info!("===========================");
             for (idx, c, s) in diverses {
-                info!("diverse result in sink_{idx}: count: {c}, sum: {s}");
+                info!("diverse result in sink_{idx}: row count: {c}, sum: {s}");
             }
         }
 

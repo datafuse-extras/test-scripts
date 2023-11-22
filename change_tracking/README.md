@@ -25,30 +25,35 @@
 
   if not set, the default value `databend://root:@localhost:8000/default?sslmode=disable` will be used.
 
+- before starting query nodes, set ee license (required, since we are tesing ee feature)
+
+  `export QUERY_DATABEND_ENTERPRISE_LICENSE='.......'`
+
+
 - kick off the test
 
 
    `RUST_LOG="info,databend_driver=error,databend_client=error" cargo run -r`
 
-   or adjust the options: 
-  
+   or specify the options: 
+
    `RUST_LOG="info,databend_driver=error,databend_client=error" cargo run -r -- -h`
 
    ~~~
-    Change Tracking Testing Script
-    
-    Usage: test_stream [OPTIONS]
-    
-    Options:
-          --num-derived-streams <NUM_DERIVED_STREAMS>
-    	  number of derived streams [default: 5]
-          --stream-consumption-concurrency <STREAM_CONSUMPTION_CONCURRENCY>
-    	  degree of concurrency that a stream being consumed [default: 3]
-          --times-consumption-per-stream <TIMES_CONSUMPTION_PER_STREAM>
-    	  times that a stream should be consumed [default: 10]
-          --ignore-stream-consumption-error
-    	  
-      -h, --help
-    	  Print help
+   Change Tracking Testing Script
+
+   Usage: test_stream [OPTIONS]
+   
+   Options:
+         --num-derived-streams <NUM_DERIVED_STREAMS>
+             number of derived streams [default: 5]
+         --stream-consumption-concurrency <STREAM_CONSUMPTION_CONCURRENCY>
+             degree of concurrency that a stream being consumed [default: 3]
+         --times-consumption-per-stream <TIMES_CONSUMPTION_PER_STREAM>
+             times that a stream should be consumed [default: 10]
+         --show-stream-consumption-errors
+             show stream consumption errors
+         -h, --help
+             Print help
    ~~~
 

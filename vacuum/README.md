@@ -17,7 +17,7 @@ After completing the above operations according to specified parameters, check i
 
   NOTE: It is recommended to set `retention_period` to 0, to cover more extreme conditions.
 
-- set ee license (required, since we are tesing ee feature)
+- before starting query nodes, set ee license (required, since we are tesing ee feature)
 
   `export QUERY_DATABEND_ENTERPRISE_LICENSE='.......'`
 
