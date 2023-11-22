@@ -1,16 +1,18 @@
 # test scenario 
 
 1. test table `base` with change tracking enabled
-2. keep inserting data into base table
+2. keep 
+   - inserting data into base table
+   - compacting base table
 3. create the first `base_stream` based on the `base` table
    - create multiple test streams based on the `base_stream`
 4. for each of the test streams 
    
      concurrently consumes the stream into sink tables, till reached the predefine number of iterations.
 
-5. stop inserting
+5. stop inserting and compacting
 
-6. consume the `base_stream` and all the derived stream again (on time only)
+6. consume the `base_stream` and all the derived stream again (one time only)
 
 5. check that all the sink tables have same data 
 
