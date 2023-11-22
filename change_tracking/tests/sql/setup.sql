@@ -1,8 +1,3 @@
-drop database if exists test_stream;
-create database test_stream;
-
-use test_stream;
-
 create table base (
     c int32 not null
 );

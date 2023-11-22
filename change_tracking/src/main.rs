@@ -32,7 +32,7 @@ struct Args {
 
 struct Driver {
     args: Args,
-    stop_insertion: Arc<AtomicBool>,
+    stop_flag: Arc<AtomicBool>,
     dsn: String,
 }
 
@@ -40,15 +40,9 @@ impl Driver {
     fn new(args: Args) -> Self {
         Self {
             args,
-            stop_insertion: Arc::new(AtomicBool::new(false)),
+            stop_flag: Arc::new(AtomicBool::new(false)),
             dsn: "databend://root:@localhost:8000/default?sslmode=disable".to_string(),
         }
-    }
-
-    async fn stop_insertion(&self, handle: JoinHandle<Result<()>>) -> Result<()> {
-        self.stop_insertion.store(true, Ordering::Relaxed);
-        let _ = handle.await?;
-        Ok(())
     }
 
     async fn wait_stream_consuming(&self, handles: Vec<JoinHandle<Result<u32>>>) -> Result<u32> {
@@ -81,10 +75,19 @@ impl Driver {
         let conn = self.new_plain_connection().await?;
         let setup_script = read_to_string("tests/sql/setup.sql")?;
 
-        let sqls = setup_script.split(';');
+        let db_set_sqls = vec![
+            "drop database if exists test_stream",
+            "create database test_stream",
+            "use test_stream",
+        ];
+
+        let setup_lines = setup_script.split(';');
+
+        let sqls = db_set_sqls.into_iter().chain(setup_lines);
 
         for sql in sqls {
             let sql = sql.trim();
+            info!("line: {}", sql);
             if !sql.is_empty() {
                 info!("executing sql: {}", sql);
                 conn.exec(sql).await?;
@@ -99,7 +102,7 @@ impl Driver {
     async fn begin_insertion(&self) -> Result<JoinHandle<Result<()>>> {
         let conn = self.new_connection().await?;
         let sql = "insert into base select * from rand limit 1";
-        let stop_flag = self.stop_insertion.clone();
+        let stop_flag = self.stop_flag.clone();
         let handle = tokio::spawn(async move {
             while !stop_flag.load(Ordering::Relaxed) {
                 if let Err(e) = conn.exec(sql).await {
@@ -108,6 +111,25 @@ impl Driver {
             }
 
             Ok::<_, anyhow::Error>(())
+        });
+        Ok(handle)
+    }
+
+    async fn begin_compaction(&self) -> Result<JoinHandle<Result<u32>>> {
+        let conn = self.new_connection().await?;
+        let sql = "optimize table base compact";
+        let stop_flag = self.stop_flag.clone();
+        let handle = tokio::spawn(async move {
+            let mut success_compaction = 0u32;
+            while !stop_flag.load(Ordering::Relaxed) {
+                if let Err(e) = conn.exec(sql).await {
+                    info!("table compaction err: {e}");
+                } else {
+                    success_compaction += 1;
+                }
+            }
+
+            Ok::<_, anyhow::Error>(success_compaction)
         });
         Ok(handle)
     }
@@ -197,9 +219,9 @@ impl Driver {
         let conn = self.new_connection().await?;
 
         let row = conn.query_row("select count() from sink").await?;
-        let (count,): (u32,) = row.unwrap().try_into().unwrap();
+        let (count, ): (u32, ) = row.unwrap().try_into().unwrap();
         let row = conn.query_row("select sum(c) from sink").await?;
-        let (sum,): (u64,) = row.unwrap().try_into().unwrap();
+        let (sum, ): (u64, ) = row.unwrap().try_into().unwrap();
 
         info!("===========================");
         info!("Sink table: row count: {count}");
@@ -215,11 +237,11 @@ impl Driver {
             let row = conn
                 .query_row(format!("select count() from sink_{idx}").as_str())
                 .await?;
-            let (c,): (u32,) = row.unwrap().try_into().unwrap();
+            let (c, ): (u32, ) = row.unwrap().try_into().unwrap();
             let row = conn
                 .query_row(format!("select sum(c) from sink_{idx}").as_str())
                 .await?;
-            let (s,): (u64,) = row.unwrap().try_into().unwrap();
+            let (s, ): (u64, ) = row.unwrap().try_into().unwrap();
             info!(
                 "sink of derived stream {}: row count {}, sum {} ",
                 idx, c, s
@@ -291,6 +313,7 @@ async fn main() -> Result<()> {
     let _ = conn.exec(sql).await?;
 
     let insertion_handle = driver.begin_insertion().await?;
+    let compaction_handle = driver.begin_compaction().await?;
 
     // create the `base`(line) stream
     //
@@ -321,8 +344,17 @@ async fn main() -> Result<()> {
     info!("success : {}", success);
     info!("==========================\n");
 
+    // stop insertion and compaction
     // during stopping insertion, there might be extra rows inserted into `base` table, that is OK
-    driver.stop_insertion(insertion_handle).await?;
+
+    driver.stop_flag.store(true, Ordering::Relaxed);
+    insertion_handle.await??;
+    let num_success_compaction = compaction_handle.await??;
+
+    info!("===========================");
+    info!("success compaction: {num_success_compaction}");
+    info!("==========================");
+    info!("");
 
     // final consume
     //
