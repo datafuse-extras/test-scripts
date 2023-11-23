@@ -159,7 +159,12 @@ impl Driver {
     }
 
     async fn concurrently_consume(&self, stream_id: u32) -> Result<u32> {
-        let sql = format!("insert into sink_{stream_id}  select * from base_stream_{stream_id}");
+        let sql = if stream_id % 2 == 0{
+            format!("insert into sink_{stream_id}  select * from base_stream_{stream_id}")
+        } else {
+            format!("merge into sink_{stream_id} using (select * from base_stream_{stream_id}) as s on 1 <> 1 when matched then update * when not matched then insert *")
+        };
+
         let mut handles = Vec::new();
         for batch_id in 0..self.args.stream_consumption_concurrency {
             let conn = self.new_connection_with_test_db().await?;
