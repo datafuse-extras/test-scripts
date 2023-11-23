@@ -55,15 +55,14 @@ impl Driver {
         Ok(success)
     }
 
-    async fn new_connection(&self) -> Result<Box<dyn Connection>> {
-        let client = Client::new(self.dsn.clone());
-        let conn = client.get_conn().await?;
-        // set current database to "test_stream
+    async fn new_connection_with_test_db(&self) -> Result<Box<dyn Connection>> {
+        let conn = self.new_connection().await?;
+        // set current database to 'test_stream'
         conn.exec("use test_stream").await?;
         Ok(conn)
     }
 
-    async fn new_plain_connection(&self) -> Result<Box<dyn Connection>> {
+    async fn new_connection(&self) -> Result<Box<dyn Connection>> {
         let client = Client::new(self.dsn.clone());
         let conn = client.get_conn().await?;
         Ok(conn)
@@ -72,7 +71,7 @@ impl Driver {
     async fn setup(&self) -> Result<()> {
         info!("=====running setup script====");
 
-        let conn = self.new_plain_connection().await?;
+        let conn = self.new_connection().await?;
         let setup_script = read_to_string("tests/sql/setup.sql")?;
 
         let db_set_sqls = vec![
@@ -100,7 +99,7 @@ impl Driver {
     }
 
     async fn begin_insertion(&self) -> Result<JoinHandle<Result<()>>> {
-        let conn = self.new_connection().await?;
+        let conn = self.new_connection_with_test_db().await?;
         let sql = "insert into base select * from rand limit 1";
         let stop_flag = self.stop_flag.clone();
         let handle = tokio::spawn(async move {
@@ -116,11 +115,11 @@ impl Driver {
     }
 
     async fn begin_compaction(&self) -> Result<JoinHandle<Result<u32>>> {
-        let conn = self.new_connection().await?;
+        let conn = self.new_connection_with_test_db().await?;
         let sql = "optimize table base compact";
         let stop_flag = self.stop_flag.clone();
         let handle = tokio::spawn(async move {
-            let mut success_compaction = 0u32;
+            let mut success_compaction = 0;
             while !stop_flag.load(Ordering::Relaxed) {
                 if let Err(e) = conn.exec(sql).await {
                     info!("table compaction err: {e}");
@@ -135,7 +134,7 @@ impl Driver {
     }
 
     async fn final_consume_all_streams(&self) -> Result<()> {
-        let conn = self.new_connection().await?;
+        let conn = self.new_connection_with_test_db().await?;
         // consume all the derived streams
         for idx in 0..self.args.num_derived_streams {
             let sql = format!("insert into sink_{idx}  select * from base_stream_{idx}");
@@ -163,7 +162,7 @@ impl Driver {
         let sql = format!("insert into sink_{stream_id}  select * from base_stream_{stream_id}");
         let mut handles = Vec::new();
         for batch_id in 0..self.args.stream_consumption_concurrency {
-            let conn = self.new_connection().await?;
+            let conn = self.new_connection_with_test_db().await?;
             let iters = self.args.times_consumption_per_stream;
             let show_err = self.args.show_stream_consumption_errors;
             let join_handle = tokio::spawn({
@@ -216,7 +215,7 @@ impl Driver {
         info!("==========================");
         info!("======verify result=======");
         info!("==========================");
-        let conn = self.new_connection().await?;
+        let conn = self.new_connection_with_test_db().await?;
 
         let row = conn.query_row("select count() from sink").await?;
         let (count, ): (u32, ) = row.unwrap().try_into().unwrap();
@@ -273,14 +272,14 @@ impl Driver {
     }
 
     async fn create_base_stream(&self) -> Result<()> {
-        let conn = self.new_connection().await?;
+        let conn = self.new_connection_with_test_db().await?;
         let sql = "create stream base_stream on table base";
         conn.exec(sql).await?;
         Ok(())
     }
 
     async fn create_derived_streams(&self) -> Result<()> {
-        let conn = self.new_connection().await?;
+        let conn = self.new_connection_with_test_db().await?;
         for idx in 0..self.args.num_derived_streams {
             let sql =
                 format!("create stream base_stream_{idx} on table base at (STREAM => base_stream)");
@@ -308,7 +307,7 @@ async fn main() -> Result<()> {
     driver.setup().await?;
 
     // insert some random data (this is optional)
-    let conn = driver.new_connection().await?;
+    let conn = driver.new_connection_with_test_db().await?;
     let sql = "insert into base select * from rand limit 10";
     let _ = conn.exec(sql).await?;
 
