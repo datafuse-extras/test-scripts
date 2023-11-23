@@ -8,7 +8,7 @@
    - create multiple test streams based on the `base_stream`
 4. for each of the test streams 
    
-     concurrently consumes the stream into sink tables, till reached the predefine number of iterations.
+     concurrently consumes the stream, using `insert into` and `merge into` statements, into sink tables, till reached the predefine number of iterations.
 
 5. stop inserting and compacting
 
