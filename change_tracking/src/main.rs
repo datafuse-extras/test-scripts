@@ -86,7 +86,6 @@ impl Driver {
 
         for sql in sqls {
             let sql = sql.trim();
-            info!("line: {}", sql);
             if !sql.is_empty() {
                 info!("executing sql: {}", sql);
                 conn.exec(sql).await?;
