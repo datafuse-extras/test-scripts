@@ -23,9 +23,9 @@
 
   Set the environment variable `DATABAEND_DSN` to the connection string of the database to be tested
 
-  e.g. `export DATABEND_DSN="databend://root:@localhost:8000/?sslmode=disable"`
+  e.g. `export DATABEND_DSN="databend://root:@localhost:8000/?sslmode=disable&enable_experimental_merge_into=1"`
 
-  if not set, the default value `databend://root:@localhost:8000/default?sslmode=disable` will be used.
+  if not set, the default value `databend://root:@localhost:8000/default?sslmode=disable&enable_experimental_merge_into=1` will be used.
 
 - before starting query nodes, set ee license (required, since we are tesing ee feature)
 

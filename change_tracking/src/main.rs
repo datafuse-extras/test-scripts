@@ -41,7 +41,7 @@ impl Driver {
         Self {
             args,
             stop_flag: Arc::new(AtomicBool::new(false)),
-            dsn: "databend://root:@localhost:8000/default?sslmode=disable".to_string(),
+            dsn: "databend://root:@localhost:8000/default?sslmode=disable&enable_experimental_merge_into=1".to_string(),
         }
     }
 
