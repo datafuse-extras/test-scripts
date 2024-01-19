@@ -136,12 +136,13 @@ impl Driver {
         let conn = self.new_connection_with_test_db().await?;
         // consume all the derived streams
         for idx in 0..self.args.num_derived_streams {
-            let sql = format!("insert into sink_{idx}  select * from base_stream_{idx}");
+            let sql = format!("insert into sink_{idx}  select c from base_stream_{idx}");
+            info!("{}", sql);
             conn.exec(&sql).await?;
         }
 
         // consume the base stream
-        let sql = "insert into sink select * from base_stream";
+        let sql = "insert into sink select c from base_stream";
         conn.exec(sql).await?;
         Ok(())
     }
@@ -158,10 +159,10 @@ impl Driver {
     }
 
     async fn concurrently_consume(&self, stream_id: u32) -> Result<u32> {
-        let sql = if stream_id % 2 == 0{
-            format!("insert into sink_{stream_id}  select * from base_stream_{stream_id}")
+        let sql = if stream_id % 2 == 0 {
+            format!("insert into sink_{stream_id}  select c from base_stream_{stream_id}")
         } else {
-            format!("merge into sink_{stream_id} using (select * from base_stream_{stream_id}) as s on 1 <> 1 when matched then update * when not matched then insert *")
+            format!("merge into sink_{stream_id} using (select c from base_stream_{stream_id}) as s on 1 <> 1 when matched then update * when not matched then insert *")
         };
 
         let mut handles = Vec::new();
@@ -222,9 +223,9 @@ impl Driver {
         let conn = self.new_connection_with_test_db().await?;
 
         let row = conn.query_row("select count() from sink").await?;
-        let (count, ): (u32, ) = row.unwrap().try_into().unwrap();
+        let (count,): (u32,) = row.unwrap().try_into().unwrap();
         let row = conn.query_row("select sum(c) from sink").await?;
-        let (sum, ): (u64, ) = row.unwrap().try_into().unwrap();
+        let (sum,): (u64,) = row.unwrap().try_into().unwrap();
 
         info!("===========================");
         info!("Sink table: row count: {count}");
@@ -240,11 +241,11 @@ impl Driver {
             let row = conn
                 .query_row(format!("select count() from sink_{idx}").as_str())
                 .await?;
-            let (c, ): (u32, ) = row.unwrap().try_into().unwrap();
+            let (c,): (u32,) = row.unwrap().try_into().unwrap();
             let row = conn
                 .query_row(format!("select sum(c) from sink_{idx}").as_str())
                 .await?;
-            let (s, ): (u64, ) = row.unwrap().try_into().unwrap();
+            let (s,): (u64,) = row.unwrap().try_into().unwrap();
             info!(
                 "sink of derived stream {}: row count {}, sum {} ",
                 idx, c, s
@@ -363,8 +364,11 @@ async fn main() -> Result<()> {
     //
     // since the insertion is stopped, after consuming `base` stream and the derived streams
     // the sink tables will be the same
+
+    info!("finalizing consuming all streams");
     driver.final_consume_all_streams().await?;
 
+    info!("verifing");
     // verify
     driver.verify().await?;
 
