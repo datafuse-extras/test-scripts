@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.*"
-databend-driver = "0.2.22"
+databend-driver = "0.13.3"
 env_logger = "0.10.0"
 log = "0.4.17"
 futures-util = "0.3.28"
