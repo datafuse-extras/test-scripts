@@ -35,6 +35,8 @@ async fn main() -> Result<()> {
     let result = c1.commit().await;
     assert!(result.is_err());
     c1.assert_query(select_t, vec![(2,)]).await;
-    // c2.assert_query(select_t, vec![(2,)]).await;
+    c2.assert_query(select_t, vec![(2,)]).await;
+
+    println!("All tests passed!");
     Ok(())
 }
