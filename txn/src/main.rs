@@ -79,6 +79,29 @@ async fn main() -> Result<()> {
     c1.assert_query("SELECT c FROM s;", vec![(1,)]).await;
     let result = c1.commit().await;
     assert!(result.is_err());
+
+    // no conflict, both commit success
+    c1.assert_query(select_t, vec![(2,)]).await;
+    c2.assert_query(select_t, vec![(2,)]).await;
+    c1.exec("CREATE OR REPLACE TABLE t1(c int);").await?;
+    let select_t1 = "SELECT * FROM t1 ORDER BY c;";
+
+    c1.begin().await?;
+    c1.exec("INSERT INTO t VALUES(1);").await?;
+    c1.assert_query(select_t, vec![(1,), (2,)]).await;
+    c2.assert_query(select_t, vec![(2,)]).await;
+
+    c2.begin().await?;
+    c2.exec("INSERT INTO t1 VALUES(3);").await?;
+    c1.assert_query::<(i32,)>(select_t1, vec![]).await;
+    c2.assert_query(select_t1, vec![(3,)]).await;
+
+    c2.commit().await?;
+    c1.commit().await?;
+    c1.assert_query(select_t, vec![(1,), (2,)]).await;
+    c2.assert_query(select_t, vec![(1,), (2,)]).await;
+    c1.assert_query(select_t1, vec![(3,)]).await;
+    c2.assert_query(select_t1, vec![(3,)]).await;
     println!("All tests passed!");
     Ok(())
 }
