@@ -5,7 +5,7 @@ CREATE TASK IF NOT EXISTS merge_task
 AS BEGIN   
         BEGIN;
         MERGE INTO json_table_flag_1 AS target
-        USING (SELECT * FROM json_table_flag_1_stream) source
+        USING (SELECT * FROM json_table_stream) source
         ON source. source_flag = 1 AND target.id = source.id
         WHEN MATCHED THEN 
                 UPDATE SET target.id = source.id,target.create_at = source.create_at
@@ -14,7 +14,7 @@ AS BEGIN
     ;
 
         MERGE INTO json_table_flag_2 AS target
-            USING (SELECT * FROM json_table_flag_2_stream) source
+            USING (SELECT * FROM json_table_stream) source
         ON source. source_flag = 2 AND target.id = source.id
         WHEN MATCHED THEN 
                 UPDATE SET target.id = source.id,target.create_at = source.create_at
@@ -23,7 +23,7 @@ AS BEGIN
     ;
 
         MERGE INTO json_table_flag_3 AS target
-        USING (SELECT * FROM json_table_flag_3_stream) source
+        USING (SELECT * FROM json_table_stream) source
         ON source. source_flag = 3 AND target.id = source.id
         WHEN MATCHED THEN 
                 UPDATE SET target.id = source.id,target.create_at = source.create_at
@@ -32,7 +32,7 @@ AS BEGIN
     ;
 
         MERGE INTO json_table_flag_4 AS target
-        USING (SELECT * FROM json_table_flag_4_stream) source
+        USING (SELECT * FROM json_table_stream) source
         ON source. source_flag = 4 AND target.id = source.id
         WHEN MATCHED THEN 
                 UPDATE SET target.id = source.id,target.create_at = source.create_at
