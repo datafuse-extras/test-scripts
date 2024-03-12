@@ -1,5 +1,6 @@
-CREATE TASK IF NOT EXISTS merge_task WAREHOUSE = 'task-test' SCHEDULE = 1 SECOND
-WHEN STREAM_STATUS('json_table_stream') = TRUE AS BEGIN BEGIN;
+CREATE TASK merge_task WAREHOUSE = 'task-test' SCHEDULE = 100 MINUTE
+WHEN STREAM_STATUS('json_table_stream') = TRUE AS BEGIN 
+-- BEGIN;
 
 MERGE INTO json_table_flag_1 AS target USING (
         SELECT
@@ -69,6 +70,6 @@ UPDATE
 INSERT
         *;
 
-COMMIT;
+-- COMMIT;
 
 END;

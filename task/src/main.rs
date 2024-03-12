@@ -37,7 +37,9 @@ async fn main() -> Result<()> {
         set_up(&client).await?;
         let c = client.get_conn().await?;
         let sql = std::fs::read_to_string(TASK_TXN_MERGE)?;
+        c.exec("drop task if exists merge_task;").await?;
         c.exec(&sql).await?;
+        c.exec("execute task merge_task").await?;
         c.assert_query("select count(*) from json_table;", vec![(10000,)])
             .await;
         c.assert_query("select count(*) from json_table_stream;", vec![(0,)])
