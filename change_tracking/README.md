@@ -55,6 +55,8 @@
              times that a stream should be consumed [default: 10]
          --show-stream-consumption-errors
              show stream consumption errors
+         --append-only-stream
+             append only or standard stream
          -h, --help
              Print help
    ~~~
