@@ -28,6 +28,10 @@ struct Args {
     /// show stream consumption errors
     #[arg(long, default_value_t = false)]
     show_stream_consumption_errors: bool,
+
+    /// append only or standard stream
+    #[arg(long, default_value_t = false)]
+    append_only_stream: bool,
 }
 
 struct Driver {
@@ -99,12 +103,78 @@ impl Driver {
 
     async fn begin_insertion(&self) -> Result<JoinHandle<Result<()>>> {
         let conn = self.new_connection_with_test_db().await?;
-        let sql = "insert into base select * from rand limit 1";
+        let sql = "insert into base select a, b, uuid() as c, d from rand limit 100";
         let stop_flag = self.stop_flag.clone();
         let handle = tokio::spawn(async move {
             while !stop_flag.load(Ordering::Relaxed) {
                 if let Err(e) = conn.exec(sql).await {
                     info!("Insertion err: {e}");
+                }
+            }
+
+            Ok::<_, anyhow::Error>(())
+        });
+        Ok(handle)
+    }
+
+    async fn begin_delete(&self) -> Result<JoinHandle<Result<()>>> {
+        let conn = self.new_connection_with_test_db().await?;
+        let sql = "delete from base where a < -15000 and d < '1970-01-01 00:00:00'";
+        let stop_flag = self.stop_flag.clone();
+        let handle = tokio::spawn(async move {
+            while !stop_flag.load(Ordering::Relaxed) {
+                if let Err(e) = conn.exec(sql).await {
+                    info!("Deletion err: {e}");
+                }
+            }
+
+            Ok::<_, anyhow::Error>(())
+        });
+        Ok(handle)
+    }
+
+    async fn begin_replace(&self) -> Result<JoinHandle<Result<()>>> {
+        let conn = self.new_connection_with_test_db().await?;
+        let sql = "replace into base on(a) select a, b, uuid() as c, d from rand limit 2";
+        let stop_flag = self.stop_flag.clone();
+        let handle = tokio::spawn(async move {
+            while !stop_flag.load(Ordering::Relaxed) {
+                if let Err(e) = conn.exec(sql).await {
+                    info!("Replace err: {e}");
+                }
+            }
+
+            Ok::<_, anyhow::Error>(())
+        });
+        Ok(handle)
+    }
+
+    async fn begin_update(&self) -> Result<JoinHandle<Result<()>>> {
+        let conn = self.new_connection_with_test_db().await?;
+        let sql = "update base set d = now() where d > '2099-01-01 00:00:00' and a > 15000";
+        let stop_flag = self.stop_flag.clone();
+        let handle = tokio::spawn(async move {
+            while !stop_flag.load(Ordering::Relaxed) {
+                if let Err(e) = conn.exec(sql).await {
+                    info!("Update err: {e}");
+                }
+            }
+
+            Ok::<_, anyhow::Error>(())
+        });
+        Ok(handle)
+    }
+
+    async fn begin_merge(&self) -> Result<JoinHandle<Result<()>>> {
+        let conn = self.new_connection_with_test_db().await?;
+        let sql = "merge into base using (select a, b, uuid() as c, d from rand limit 10) as s on base.a = s.a \
+                        when matched and s.d > '2099-01-01 00:00:00' then update set base.b = s.b and base.d = now() \
+                        when matched and s.d < '1970-01-01 00:00:00' then delete when not matched then insert *";
+        let stop_flag = self.stop_flag.clone();
+        let handle = tokio::spawn(async move {
+            while !stop_flag.load(Ordering::Relaxed) {
+                if let Err(e) = conn.exec(sql).await {
+                    info!("Merge err: {e}");
                 }
             }
 
@@ -134,15 +204,31 @@ impl Driver {
 
     async fn final_consume_all_streams(&self) -> Result<()> {
         let conn = self.new_connection_with_test_db().await?;
+        let append_only = self.args.append_only_stream;
         // consume all the derived streams
         for idx in 0..self.args.num_derived_streams {
-            let sql = format!("insert into sink_{idx}  select c from base_stream_{idx}");
+            let sql = if append_only {
+                format!("insert into sink_{idx} select a, b, c, d from base_stream_{idx}")
+            } else {
+                format!("merge into sink_{idx} as t using \
+                        (select a, b, c, d, change$action, change$is_update from base_stream_{idx}) as s \
+                        on t.c = s.c when matched and s.change$action = 'DELETE' and s.change$is_update=false then delete \
+                        when matched and s.change$action = 'INSERT' and s.change$is_update=true then update * \
+                        when not matched and s.change$action = 'INSERT' then insert values(s.a, s.b, s.c, s.d)")
+            };
             info!("{}", sql);
             conn.exec(&sql).await?;
         }
 
         // consume the base stream
-        let sql = "insert into sink select c from base_stream";
+        let sql = if append_only {
+            "insert into sink select a, b, c, d from base_stream"
+        } else {
+            "merge into sink as t using (select a, b, c, d, change$action, change$is_update from base_stream) as s \
+             on t.c = s.c when matched and s.change$action = 'DELETE' and s.change$is_update=false then delete \
+             when matched and s.change$action = 'INSERT' and s.change$is_update=true then update * \
+             when not matched and s.change$action = 'INSERT' then insert values(s.a, s.b, s.c, s.d)"
+        };
         conn.exec(sql).await?;
         Ok(())
     }
@@ -159,10 +245,20 @@ impl Driver {
     }
 
     async fn concurrently_consume(&self, stream_id: u32) -> Result<u32> {
-        let sql = if stream_id % 2 == 0 {
-            format!("insert into sink_{stream_id}  select c from base_stream_{stream_id}")
+        let append_only = self.args.append_only_stream;
+        let sql = if append_only {
+            if stream_id % 2 == 0 {
+                format!("insert into sink_{stream_id}  select a, b, c, d from base_stream_{stream_id}")
+            } else {
+                format!("merge into sink_{stream_id} using (select a, b, c, d from base_stream_{stream_id}) as s on 1 <> 1 \
+                         when matched then update * when not matched then insert *")
+            }
         } else {
-            format!("merge into sink_{stream_id} using (select c from base_stream_{stream_id}) as s on 1 <> 1 when matched then update * when not matched then insert *")
+            format!("merge into sink_{stream_id} as t using \
+                    (select a, b, c, d, change$action, change$is_update from base_stream_{stream_id}) as s \
+                    on t.c = s.c when matched and s.change$action = 'DELETE' and s.change$is_update=false then delete \
+                    when matched and s.change$action = 'INSERT' and s.change$is_update=true then update * \
+                    when not matched and s.change$action = 'INSERT' then insert values(s.a, s.b, s.c, s.d)")
         };
 
         let mut handles = Vec::new();
@@ -224,12 +320,12 @@ impl Driver {
 
         let row = conn.query_row("select count() from sink").await?;
         let (count,): (u32,) = row.unwrap().try_into().unwrap();
-        let row = conn.query_row("select sum(c) from sink").await?;
+        let row = conn.query_row("select sum(b) from sink").await?;
         let (sum,): (u64,) = row.unwrap().try_into().unwrap();
 
         info!("===========================");
         info!("Sink table: row count: {count}");
-        info!("Sink table: sum of column `c`: {sum}");
+        info!("Sink table: sum of column `b`: {sum}");
         info!("===========================");
         info!("");
 
@@ -243,7 +339,7 @@ impl Driver {
                 .await?;
             let (c,): (u32,) = row.unwrap().try_into().unwrap();
             let row = conn
-                .query_row(format!("select sum(c) from sink_{idx}").as_str())
+                .query_row(format!("select sum(b) from sink_{idx}").as_str())
                 .await?;
             let (s,): (u64,) = row.unwrap().try_into().unwrap();
             info!(
@@ -278,16 +374,18 @@ impl Driver {
 
     async fn create_base_stream(&self) -> Result<()> {
         let conn = self.new_connection_with_test_db().await?;
-        let sql = "create stream base_stream on table base";
-        conn.exec(sql).await?;
+        let append_only = self.args.append_only_stream;
+        let sql = format!("create stream base_stream on table base append_only = {append_only}");
+        conn.exec(&sql).await?;
         Ok(())
     }
 
     async fn create_derived_streams(&self) -> Result<()> {
         let conn = self.new_connection_with_test_db().await?;
+        let append_only = self.args.append_only_stream;
         for idx in 0..self.args.num_derived_streams {
             let sql =
-                format!("create stream base_stream_{idx} on table base at (STREAM => base_stream)");
+                format!("create stream base_stream_{idx} on table base at (STREAM => base_stream) append_only = {append_only}");
             conn.exec(&sql).await?;
             let sql = format!("create table sink_{idx} like base");
             conn.exec(&sql).await?;
@@ -311,13 +409,24 @@ async fn main() -> Result<()> {
     let driver = Arc::new(driver);
     driver.setup().await?;
 
+    let append_only = driver.args.append_only_stream;
+
     // insert some random data (this is optional)
     let conn = driver.new_connection_with_test_db().await?;
-    let sql = "insert into base select * from rand limit 10";
+    let sql = "insert into base select a, b, uuid() as c, d from rand limit 10";
     let _ = conn.exec(sql).await?;
 
     let insertion_handle = driver.begin_insertion().await?;
     let compaction_handle = driver.begin_compaction().await?;
+    let deletion_handle = driver.begin_delete().await?;
+    let mut update_handle = None;
+    let mut merge_handle = None;
+    let mut replace_handle = None;
+    if !append_only {
+        update_handle = Some(driver.begin_update().await?);
+        merge_handle = Some(driver.begin_merge().await?);
+        replace_handle = Some(driver.begin_replace().await?);
+    }
 
     // create the `base`(line) stream
     //
@@ -353,6 +462,12 @@ async fn main() -> Result<()> {
 
     driver.stop_flag.store(true, Ordering::Relaxed);
     insertion_handle.await??;
+    deletion_handle.await??;
+    if !append_only {
+        update_handle.unwrap().await??;
+        merge_handle.unwrap().await??;
+        replace_handle.unwrap().await??;
+    }
     let num_success_compaction = compaction_handle.await??;
 
     info!("===========================");
