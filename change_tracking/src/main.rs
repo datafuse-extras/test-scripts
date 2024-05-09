@@ -2,6 +2,7 @@ use std::fs::read_to_string;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use anyhow::anyhow;
 use anyhow::Result;
 use clap::Parser;
 use databend_driver::{Client, Connection};
@@ -360,6 +361,7 @@ impl Driver {
             info!("===========================");
             info!("======     PASSED      ====");
             info!("===========================");
+            Ok(())
         } else {
             info!("===========================");
             info!("======     FAILED      ====");
@@ -367,9 +369,8 @@ impl Driver {
             for (idx, c, s) in diverses {
                 info!("diverse result in sink_{idx}: row count: {c}, sum: {s}");
             }
+            Err(anyhow!("Test Failed"))
         }
-
-        Ok(())
     }
 
     async fn create_base_stream(&self) -> Result<()> {

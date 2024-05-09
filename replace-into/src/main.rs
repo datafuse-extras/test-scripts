@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
         1000
     };
 
-    setup(&dsn).await?;
+    //setup(&dsn).await?;
 
     let success_replace_stmts = execute(&dsn, iterations).await?;
 

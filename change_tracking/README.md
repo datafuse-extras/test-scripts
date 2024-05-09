@@ -61,3 +61,52 @@
              Print help
    ~~~
 
+- expected result
+
+   ~~~
+	[2024-05-09T04:59:04Z INFO  test_stream] exec: batch 0, stream 1, iter 9, progress 100.00%
+	[2024-05-09T04:59:04Z INFO  test_stream] exec: batch 2, stream 1, iter 9, progress 100.00%
+	[2024-05-09T04:59:04Z INFO  test_stream] exec: batch 1, stream 1, iter 9, progress 100.00%
+	[2024-05-09T04:59:04Z INFO  test_stream] ###options(recall)###:
+	     Args {
+		num_derived_streams: 5,
+		stream_consumption_concurrency: 3,
+		times_consumption_per_stream: 10,
+		show_stream_consumption_errors: false,
+	    }
+	[2024-05-09T04:59:04Z INFO  test_stream] ==========================
+	[2024-05-09T04:59:04Z INFO  test_stream] streams consumption executed so far 150
+	[2024-05-09T04:59:04Z INFO  test_stream] success : 51
+	[2024-05-09T04:59:04Z INFO  test_stream] ==========================
+
+	[2024-05-09T04:59:04Z INFO  test_stream] ===========================
+	[2024-05-09T04:59:04Z INFO  test_stream] success compaction: 41
+	[2024-05-09T04:59:04Z INFO  test_stream] ==========================
+	[2024-05-09T04:59:04Z INFO  test_stream]
+	[2024-05-09T04:59:04Z INFO  test_stream] finalizing consuming all streams
+	[2024-05-09T04:59:04Z INFO  test_stream] insert into sink_0  select c from base_stream_0
+	[2024-05-09T04:59:04Z INFO  test_stream] insert into sink_1  select c from base_stream_1
+	[2024-05-09T04:59:05Z INFO  test_stream] insert into sink_2  select c from base_stream_2
+	[2024-05-09T04:59:05Z INFO  test_stream] insert into sink_3  select c from base_stream_3
+	[2024-05-09T04:59:05Z INFO  test_stream] insert into sink_4  select c from base_stream_4
+	[2024-05-09T04:59:06Z INFO  test_stream] verifing
+	[2024-05-09T04:59:06Z INFO  test_stream] ==========================
+	[2024-05-09T04:59:06Z INFO  test_stream] ======verify result=======
+	[2024-05-09T04:59:06Z INFO  test_stream] ==========================
+	[2024-05-09T04:59:06Z INFO  test_stream] ===========================
+	[2024-05-09T04:59:06Z INFO  test_stream] Sink table: row count: 29
+	[2024-05-09T04:59:06Z INFO  test_stream] Sink table: sum of column `c`: 11967436919
+	[2024-05-09T04:59:06Z INFO  test_stream] ===========================
+	[2024-05-09T04:59:06Z INFO  test_stream]
+	[2024-05-09T04:59:06Z INFO  test_stream] ===========================
+	[2024-05-09T04:59:06Z INFO  test_stream] sink of derived stream 0: row count 29, sum 11967436919
+	[2024-05-09T04:59:07Z INFO  test_stream] sink of derived stream 1: row count 29, sum 11967436919
+	[2024-05-09T04:59:07Z INFO  test_stream] sink of derived stream 2: row count 29, sum 11967436919
+	[2024-05-09T04:59:07Z INFO  test_stream] sink of derived stream 3: row count 29, sum 11967436919
+	[2024-05-09T04:59:07Z INFO  test_stream] sink of derived stream 4: row count 29, sum 11967436919
+	[2024-05-09T04:59:07Z INFO  test_stream] ===========================
+	[2024-05-09T04:59:07Z INFO  test_stream]
+	[2024-05-09T04:59:07Z INFO  test_stream] ===========================
+	[2024-05-09T04:59:07Z INFO  test_stream] ======     PASSED      ====
+	[2024-05-09T04:59:07Z INFO  test_stream] =========================== 
+   ~~~
