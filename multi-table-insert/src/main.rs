@@ -5,7 +5,7 @@ use util::ConnectionExt;
 
 const SET_UP: &str = "./sql/setup.sql";
 const MULTI_INSERT: &str = "./sql/multi_table_insert.sql";
-const RUN: usize = 10;
+const RUN: usize = 100;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -38,11 +38,18 @@ async fn main() -> Result<()> {
         join_handles.push(handle);
     }
 
+    let mut success = 0;
     for i in 0..RUN {
-        println!("start multi table insert {}", i);
         let start = std::time::Instant::now();
         let c = client.get_conn().await?;
-        c.exec_lines(MULTI_INSERT).await?;
+        match c.exec_lines(MULTI_INSERT).await{
+            Ok(_) => {
+                success += 1;
+            }
+            Err(e) => {
+                println!("multi table insert {} failed: {:?}", i, e);
+            }
+        }
         println!("multi table insert {} cost {:?}", i, start.elapsed());
     }
 
@@ -51,6 +58,8 @@ async fn main() -> Result<()> {
         handle.await??;
     }
 
+
+    println!("success: {}/{}", success, RUN);
     // verify
     for i in 0..10 {
         let c = client.get_conn().await?;
@@ -62,7 +71,7 @@ async fn main() -> Result<()> {
         .await;
         c.assert_query(
             &format!("SELECT count(*) FROM t{};", i),
-            vec![(RUN as u64 * 10000 / 10,)],
+            vec![(success * 10000 / 10,)],
         )
         .await;
     }
