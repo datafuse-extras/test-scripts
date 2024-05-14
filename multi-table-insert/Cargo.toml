@@ -1,0 +1,15 @@
+[package]
+name = "multi-table-insert"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.*"
+databend-driver = { git = "https://github.com/youngsofun/bendsql.git", rev = "a4a5f7f2aff392954eb6a73a0c2e98ba075daa4e" }
+env_logger = "0.10.0"
+log = "0.4.17"
+futures-util = "0.3.28"
+rand = "0.8.5"
+tokio = { version = "1.28.1", features = ["full"] }
