@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use anyhow::Result;
 use databend_driver::new_connection;
@@ -15,14 +15,18 @@ async fn main() -> Result<()> {
         .map_err(|_| {
             "DATABEND_DSN is empty, please EXPORT DATABEND_DSN=<your-databend-dsn>".to_string()
         })
-        .unwrap();
+        .unwrap_or("databend://root:@localhost:8000/default?sslmode=disable&enable_experimental_merge_into=1".to_owned());
 
+    info!("using DSN: {}", dsn);
+
+    let default_number_of_iteration = 100;
     let iterations = if let Some(num_of_iteration) = std::env::args().nth(1) {
         num_of_iteration.parse::<u32>().expect("invalid number")
     } else {
-        info!("no number of iterations specified, default to 1000");
-        1000
+        default_number_of_iteration
     };
+
+    info!("number of iterations to run: {}", iterations);
 
     setup(&dsn).await?;
 
@@ -135,7 +139,6 @@ async fn exec_replace_conflict(dsn: &str, batch_ids: &[u32]) -> Result<bool> {
     // this may lead to partial and total block update.
     let sql = format!("replace into test_order on(id, insert_time) ({sub_query})");
 
-
     match conn.exec(&sql).await {
         Ok(_) => {
             info!("Ok. replace batch (with conflict) : [{}]", ids);
@@ -236,7 +239,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
 
         let mut rows = conn.query_iter("select count() from test_order").await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32, ) = r.try_into()?;
+        let count: (u32,) = r.try_into()?;
         info!(
             "CHECK: value of successfully executed replace into statements: client {}, server {}",
             success_replace_stmts * 1000,
@@ -255,7 +258,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
             )
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32, ) = r.try_into()?;
+        let count: (u32,) = r.try_into()?;
         assert_eq!(0, count.0);
 
         // show the number of distinct value of id2
@@ -264,7 +267,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
             .query_iter("select count(distinct(id2)) from test_order")
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (u32, ) = r.try_into()?;
+        let count: (u32,) = r.try_into()?;
 
         assert_eq!(success_replace_stmts, count.0);
         info!(
@@ -280,7 +283,7 @@ async fn verify(dsn: &str, success_replace_stmts: u32) -> Result<()> {
             .query_iter("select count() from test_order where id2 != id1 * 7")
             .await?;
         let r = rows.next().await.unwrap().unwrap();
-        let count: (i64, ) = r.try_into()?;
+        let count: (i64,) = r.try_into()?;
 
         info!("CHECK: value of correlated column");
 
