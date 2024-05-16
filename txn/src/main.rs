@@ -7,8 +7,10 @@ mod util;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    //export DATABEND_DSN="databend://root:@localhost:8000/?sslmode=disable"
-    let dsn = std::env::var("DATABEND_DSN").unwrap();
+    let dsn = std::env::var("DATABEND_DSN").unwrap_or(
+        "databend://root:@localhost:8000/default?sslmode=disable&enable_experimental_merge_into=1"
+            .to_owned(),
+    );
 
     let client = Client::new(dsn);
     let c1 = client.get_conn().await.unwrap();

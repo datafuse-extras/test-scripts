@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
         .await;
     }
 
-    println!("---FIN (PASSED)---");
+    println!("---All tests passed!---");
 
     Ok(())
 }
