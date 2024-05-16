@@ -11,7 +11,7 @@ name = "test_stream"
 [dependencies]
 anyhow = "1.0.*"
 clap = { version = "4.4.8", features = ["derive"] }
-databend-driver = "0.11.0"
+databend-driver = "0.17"
 env_logger = "0.10.0"
 log = "0.4.17"
 futures-util = "0.3.28"
