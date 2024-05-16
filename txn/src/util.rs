@@ -38,6 +38,7 @@ pub trait ConnectionExt: Connection {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn rollback(&self) -> Result<()> {
         self.exec("ROLLBACK").await?;
         Ok(())
