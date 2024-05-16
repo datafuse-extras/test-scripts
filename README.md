@@ -9,3 +9,29 @@ Currently, the code contains a significant amount of duplication and informal ha
 Moving forward, it will be progressively refined based on specific testing and quality assurance requirements.
 
 
+
+
+use `run_all_tests.sh` 
+
+~~~
+
+DATABEND_DSN="..." RUST_LOG="info,databend_driver=error,databend_client=error" ./run_all_tests.sh
+~~~
+
+to run the following tests in one go:
+
+- txn
+
+- multi-table-insert  
+
+- change_tracking
+
+if env var `DATABEND_DSN` is not specified, the default value 
+
+
+  `databend://root:@localhost:8000/default?sslmode=disable`
+
+
+will be used.
+
+
