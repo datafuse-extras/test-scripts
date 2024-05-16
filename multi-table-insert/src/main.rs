@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
         let handle: tokio::task::JoinHandle<Result<()>> = tokio::spawn(async move {
             let c = client.get_conn().await.unwrap();
             loop {
-                if stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                if stop_flag.load(std::sync::atomic::Ordering::Acquire) {
                     break;
                 }
                 c.exec(&format!("optimize table t{} compact segment;", i))
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
     for i in 0..RUN {
         let start = std::time::Instant::now();
         let c = client.get_conn().await?;
-        match c.exec_lines(MULTI_INSERT).await{
+        match c.exec_lines(MULTI_INSERT).await {
             Ok(_) => {
                 success += 1;
             }
@@ -58,8 +58,7 @@ async fn main() -> Result<()> {
         handle.await??;
     }
 
-
-    println!("success: {}/{}", success, RUN);
+    println!("success insertions / runs : {}/{}", success, RUN);
     // verify
     for i in 0..10 {
         let c = client.get_conn().await?;
@@ -75,5 +74,8 @@ async fn main() -> Result<()> {
         )
         .await;
     }
+
+    println!("---FIN (PASSED)---");
+
     Ok(())
 }
