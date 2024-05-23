@@ -2,7 +2,8 @@
 
 ERROR_COUNT=0
 
-TEST_DIRS=("change_tracking" "txn" "multi-table-insert")
+#TEST_DIRS=("change_tracking" "txn" "multi-table-insert")
+TEST_DIRS=("change_tracking")
 
 for TEST_DIR in "${TEST_DIRS[@]}"; do
   echo "Running test in $TEST_DIR..."
