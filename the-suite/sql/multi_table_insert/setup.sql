@@ -1,0 +1,10 @@
+create or replace table t0(c int) cluster by (c);
+create or replace table t1(c int) cluster by (c);
+create or replace table t2(c int) cluster by (c);
+create or replace table t3(c int) cluster by (c);
+create or replace table t4(c int) cluster by (c);
+create or replace table t5(c int) cluster by (c);
+create or replace table t6(c int) cluster by (c);
+create or replace table t7(c int) cluster by (c);
+create or replace table t8(c int) cluster by (c);
+create or replace table t9(c int) cluster by (c);
