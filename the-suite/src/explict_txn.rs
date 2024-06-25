@@ -7,8 +7,20 @@ use databend_driver::Client;
 pub async fn run(dsn: String) -> Result<()> {
 
     let client = Client::new(dsn);
+
+    // setup
+    {
+        let conn = client.get_conn().await.unwrap();
+        conn.exec("create or replace database test_txn").await?;
+    }
+
+
     let c1 = client.get_conn().await.unwrap();
+    c1.exec("use test_txn").await?;
+
     let c2 = client.get_conn().await.unwrap();
+    c2.exec("use test_txn").await?;
+
 
     let select_t = "SELECT * FROM t ORDER BY c;";
 
