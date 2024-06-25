@@ -3,6 +3,7 @@ use std::{fmt::Debug, vec};
 use anyhow::Result;
 use databend_driver::Connection;
 use futures_util::StreamExt;
+use log::error;
 
 #[allow(dead_code)]
 pub trait ConnectionExt: Connection {
@@ -11,8 +12,12 @@ pub trait ConnectionExt: Connection {
         T: TryFrom<databend_driver::Row> + 'static + Debug + PartialEq,
         <T as TryFrom<databend_driver::Row>>::Error: Debug,
     {
-        let result: Vec<T> = self.exec_query(sql).await.unwrap();
-        assert_eq!(result, expected);
+        let result: Result<Vec<T>> = self.exec_query(sql).await;
+
+        if let Err(e) = &result {
+            error!("execute sql [{}], failed. {}", sql, e)
+        }
+        assert_eq!(result.unwrap(), expected);
     }
 
     async fn exec_query<T>(&self, sql: &str) -> Result<Vec<T>>
