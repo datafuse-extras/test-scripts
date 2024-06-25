@@ -2,16 +2,14 @@
 
 ERROR_COUNT=0
 
-# cargo run change-tracking --clustered-table
 #TEST_TARGETS=("change_tracking" "txn" "multi-table-insert")
-#TEST_TARGETS=(
-#              "change-tracking"
-#              "change-tracking --append-only-stream"
-#              "change-tracking --clustered-table"
-#              "change-tracking --clustered-table --append-only-stream"
-#              "explicit-txn" "multi-table-insert")
+TEST_TARGETS=(
+              "change-tracking"
+              "change-tracking --append-only-stream"
+              "change-tracking --clustered-table"
+              "change-tracking --clustered-table --append-only-stream"
+              "explicit-txn" "multi-table-insert")
 
-TEST_TARGETS=( "explicit-txn" )
 
 for TEST_SUB_COMMAND in "${TEST_TARGETS[@]}"; do
   echo "*******************************"
