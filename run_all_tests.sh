@@ -17,7 +17,7 @@ for TEST_SUB_COMMAND in "${TEST_TARGETS[@]}"; do
   echo "*******************************"
   (
     cd "./the-suite" || exit
-    RUST_LOG="info,databend_driver=error,databend_client=error" cargo run ${TEST_SUB_COMMAND}
+    RUST_BACKTRACE=full RUST_LOG="info,databend_driver=error,databend_client=error" cargo run ${TEST_SUB_COMMAND}
   )
   
   if [ $? -ne 0 ]; then
