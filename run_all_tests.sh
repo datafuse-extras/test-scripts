@@ -8,7 +8,7 @@ TEST_TARGETS=(
               "change-tracking --append-only-stream"
               "change-tracking --clustered-table"
               "change-tracking --clustered-table --append-only-stream"
-              "explicit-txn" "multi-table-insert")
+              "explicit-txn" "multi-table-insert", "vacuum2")
 
 
 for TEST_SUB_COMMAND in "${TEST_TARGETS[@]}"; do
