@@ -352,8 +352,8 @@ impl ChangeTrackingSuite {
         let conn = self.new_connection_with_test_db().await?;
 
         let row = conn.query_row("select count() from sink").await?;
-        let (count, ): (u32, ) = row.unwrap().try_into().unwrap();
-        let row = conn.query_row("select sum(b) from sink").await?;
+        let (count, ): (u64, ) = row.unwrap().try_into().unwrap();
+        let row = conn.query_row("select sum(a) from sink").await?;
         let (sum, ): (u64, ) = row.unwrap().try_into().unwrap();
 
         info!("===========================");
@@ -370,9 +370,9 @@ impl ChangeTrackingSuite {
             let row = conn
                 .query_row(format!("select count() from sink_{idx}").as_str())
                 .await?;
-            let (c, ): (u32, ) = row.unwrap().try_into().unwrap();
+            let (c, ): (u64, ) = row.unwrap().try_into().unwrap();
             let row = conn
-                .query_row(format!("select sum(b) from sink_{idx}").as_str())
+                .query_row(format!("select sum(a) from sink_{idx}").as_str())
                 .await?;
             let (s, ): (u64, ) = row.unwrap().try_into().unwrap();
             info!(

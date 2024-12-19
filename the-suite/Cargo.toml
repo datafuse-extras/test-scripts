@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.*"
 clap = {version = "4.5.4", features = ["derive"]}
-databend-driver = "0.17"
+databend-driver = "0.24.6"
 env_logger = "0.10.0"
 log = "0.4.17"
 futures-util = "0.3.28"
