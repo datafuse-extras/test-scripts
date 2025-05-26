@@ -82,19 +82,15 @@ impl ChangeTrackingSuite {
         info!("=====running setup script====");
 
         let conn = self.new_connection().await?;
-        let setup_file_path =
-            if self.args.clustered_table {
-                SET_UP_CLUSTERED
-            } else {
-                SET_UP
-            };
+        let setup_file_path = if self.args.clustered_table {
+            SET_UP_CLUSTERED
+        } else {
+            SET_UP
+        };
         info!("setup file path {}", setup_file_path);
         let setup_script = read_to_string(setup_file_path)?;
 
-        let db_set_sqls = vec![
-            "create or replace database test_stream",
-            "use test_stream",
-        ];
+        let db_set_sqls = vec!["create or replace database test_stream", "use test_stream"];
 
         let setup_lines = setup_script.split(';');
 
@@ -352,9 +348,9 @@ impl ChangeTrackingSuite {
         let conn = self.new_connection_with_test_db().await?;
 
         let row = conn.query_row("select count() from sink").await?;
-        let (count, ): (u64, ) = row.unwrap().try_into().unwrap();
+        let (count,): (u64,) = row.unwrap().try_into().unwrap();
         let row = conn.query_row("select sum(a) from sink").await?;
-        let (sum, ): (u64, ) = row.unwrap().try_into().unwrap();
+        let (sum,): (u64,) = row.unwrap().try_into().unwrap();
 
         info!("===========================");
         info!("Sink table: row count: {count}");
@@ -370,11 +366,11 @@ impl ChangeTrackingSuite {
             let row = conn
                 .query_row(format!("select count() from sink_{idx}").as_str())
                 .await?;
-            let (c, ): (u64, ) = row.unwrap().try_into().unwrap();
+            let (c,): (u64,) = row.unwrap().try_into().unwrap();
             let row = conn
                 .query_row(format!("select sum(a) from sink_{idx}").as_str())
                 .await?;
-            let (s, ): (u64, ) = row.unwrap().try_into().unwrap();
+            let (s,): (u64,) = row.unwrap().try_into().unwrap();
             info!(
                 "sink of derived stream {}: row count {}, sum {} ",
                 idx, c, s
@@ -453,7 +449,7 @@ impl ChangeTrackingSuite {
             merge_handle = Some(driver.begin_merge().await?);
             replace_handle = Some(driver.begin_replace().await?);
         }
-        let mut recluster_handle =  None;
+        let mut recluster_handle = None;
 
         if clustered_base_table {
             recluster_handle = Some(driver.begin_recluster().await?);
