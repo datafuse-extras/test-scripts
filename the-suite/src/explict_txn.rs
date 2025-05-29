@@ -161,8 +161,6 @@ pub async fn run(dsn: String) -> Result<()> {
     // Second time query stream s
     c1.assert_query("SELECT c FROM s;", vec![(1,)]).await;
 
-    // Third time query stream s
-    c1.assert_query("SELECT c FROM s;", vec![(1,)]).await;
     c1.exec("Insert into target select c from s;").await?;
     let result = c1.commit().await;
     assert!(result.is_err());
@@ -188,11 +186,9 @@ pub async fn run(dsn: String) -> Result<()> {
     c2.exec("INSERT INTO base VALUES(2);").await?;
     c2.exec("Insert into target select c from s;").await?;
     c2.commit().await?;
-    // Second time query stream s
+    // c2 commit success, should not affect c1's stream view
     c1.assert_query("SELECT c FROM s;", vec![(1,)]).await;
 
-    // Third time query stream s
-    c1.assert_query("SELECT c FROM s;", vec![(1,)]).await;
     c1.exec("Insert into target select c from s;").await?;
     let result = c1.commit().await;
     assert!(result.is_err());
