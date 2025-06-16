@@ -99,8 +99,9 @@ impl AutoVacuumSuite {
                     info!("INSERT completed successfully");
                 }
                 Err(e) => {
+                    // Allows insertion to fail, e.g. due to concurrent mutations, snapshot working on  may be purged
+                    // But table data should NOT be corrupted, i.e. later the table health check should pass
                     info!("INSERT error: {}", e);
-                    return Err(anyhow!("INSERT failed: {}", e));
                 }
             }
         }
@@ -138,7 +139,7 @@ impl AutoVacuumSuite {
 
     async fn wait_for_completion(&self, handles: Vec<JoinHandle<Result<()>>>) -> Result<()> {
         for handle in handles {
-            let _ = handle.await??;
+            handle.await??;
         }
         Ok(())
     }
