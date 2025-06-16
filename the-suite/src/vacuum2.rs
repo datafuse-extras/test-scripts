@@ -5,6 +5,8 @@ use clap::Parser;
 use databend_driver::{Client, Connection};
 use log::info;
 use tokio::task::JoinHandle;
+use tokio::time;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Vacuum2 Testing Script - Tests for table corruption with concurrent writes and vacuum operations
 /// - Tests two scenarios: simple concurrent writes and writes within explicit transactions
@@ -85,7 +87,7 @@ impl Vacuum2Suite {
         let conn = self.new_connection().await?;
 
         // Set retention period to 0 for more extreme testing
-        conn.exec("SET DATA_RETENTION_NUM_SNAPSHOTS_TO_KEEP = 0").await?;
+        conn.exec("SET data_retention_time_in_days = 0").await?;
         conn.exec("USE test_vacuum2").await?;
 
         let sql = format!(
@@ -134,6 +136,8 @@ impl Vacuum2Suite {
                         info!("INSERT completed successfully");
                     }
                     Err(e) => {
+                        // It is OK if the insert fails, e.g. due to concurrent mutations
+                        // But table data should NOT be corrupted, i.e. later the table health check should pass
                         info!("INSERT error: {}", e);
                     }
                 }
@@ -143,21 +147,26 @@ impl Vacuum2Suite {
         Ok(())
     }
 
-    async fn execute_vacuum(&self, vacuum_id: u32) -> Result<()> {
+    async fn execute_vacuum(&self, vacuum_id: u32, running_flag: Arc<AtomicBool>) -> Result<()> {
         let conn = self.new_connection().await?;
         conn.exec("USE test_vacuum2").await?;
 
         info!("===== Vacuum thread {vacuum_id} starting =====");
 
-        match conn.exec("CALL system$vacuum2('test_vacuum2', 't1')").await {
-            Ok(_) => {
-                info!("VACUUM completed successfully");
-            }
-            Err(e) => {
-                info!("VACUUM error: {}", e);
+        // Keep running vacuum until the running_flag is set to false (when all inserts are done)
+        while running_flag.load(Ordering::Relaxed) {
+            conn.exec("SET data_retention_time_in_days = 0").await?;
+            match conn.exec("CALL system$fuse_vacuum2('test_vacuum2', 't1')").await {
+                Ok(_) => {
+                    info!("VACUUM iteration completed successfully");
+                }
+                Err(e) => {
+                    info!("VACUUM error: {}", e);
+                }
             }
         }
 
+        info!("===== Vacuum thread {vacuum_id} completed =====");
         Ok(())
     }
 
@@ -190,12 +199,13 @@ impl Vacuum2Suite {
         Ok(handles)
     }
 
-    async fn run_concurrent_vacuums(&self) -> Result<Vec<JoinHandle<Result<()>>>> {
+    async fn run_concurrent_vacuums(&self, running_flag: Arc<AtomicBool>) -> Result<Vec<JoinHandle<Result<()>>>> {
         let mut handles = Vec::new();
 
         for i in 0..self.args.vacuumers {
             let self_clone = Arc::new(self.clone());
-            let handle = tokio::spawn(async move { self_clone.execute_vacuum(i).await });
+            let running_flag_clone = running_flag.clone();
+            let handle = tokio::spawn(async move { self_clone.execute_vacuum(i, running_flag_clone).await });
             handles.push(handle);
         }
 
@@ -214,15 +224,21 @@ impl Vacuum2Suite {
         let suite = Self::new(args, dsn);
         suite.setup().await?;
 
+        // Create a flag to signal when inserts are complete
+        let running_flag = Arc::new(AtomicBool::new(true));
+
         // Run concurrent writers and vacuumers
         let scenario_name = if explicit_txn { "explicit transaction" } else { "simple concurrent writes" };
         info!("===== Running vacuum2 test with {} scenario =====", scenario_name);
 
         let writer_handles = suite.run_concurrent_inserts().await?;
-        let vacuum_handles = suite.run_concurrent_vacuums().await?;
+        let vacuum_handles = suite.run_concurrent_vacuums(running_flag.clone()).await?;
 
-        // Wait for all writers and vacuumers to complete
+        // Wait for all writers to complete
         suite.wait_for_completion(writer_handles).await?;
+
+        // Signal vacuum threads to stop and wait for them to complete
+        running_flag.store(false, Ordering::Relaxed);
         suite.wait_for_completion(vacuum_handles).await?;
 
         // Check table health
