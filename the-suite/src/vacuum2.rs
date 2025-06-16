@@ -5,7 +5,6 @@ use clap::Parser;
 use databend_driver::{Client, Connection};
 use log::info;
 use tokio::task::JoinHandle;
-use tokio::time;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Vacuum2 Testing Script - Tests for table corruption with concurrent writes and vacuum operations
@@ -109,8 +108,6 @@ impl Vacuum2Suite {
                     }
                     Err(e) => {
                         info!("INSERT error within transaction: {}", e);
-                        // Try to rollback on error but continue with test
-                        let _ = conn.exec("ROLLBACK").await;
                         return Ok(());
                     }
                 }
@@ -136,8 +133,8 @@ impl Vacuum2Suite {
                         info!("INSERT completed successfully");
                     }
                     Err(e) => {
-                        // It is OK if the insert fails, e.g. due to concurrent mutations
-                        // But table data should NOT be corrupted, i.e. later the table health check should pass
+                        // It is OK if the insert fails, e.g., due to concurrent mutations (especially we are testing with zero retention periods)
+                        // But table data should NOT be corrupted, i.e., later the table health check should pass.
                         info!("INSERT error: {}", e);
                     }
                 }
