@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     };
 
     setup(&dsn).await?;
-
+    
     let (success_inserts, success_vacuum) = execute(&dsn, &args).await?;
 
     verify(&dsn, success_inserts, success_vacuum).await?;

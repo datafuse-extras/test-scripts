@@ -41,7 +41,7 @@ pub trait ConnectionExt: Connection {
             if sql.trim().is_empty() {
                 continue;
             }
-            self.exec(&sql).await?;
+            self.exec(sql).await?;
         }
         Ok(())
     }
