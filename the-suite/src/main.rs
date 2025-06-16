@@ -10,10 +10,12 @@ mod change_tracking;
 mod explict_txn;
 mod multi_table_insert;
 mod util;
+mod vacuum2;
 
 use auto_vacuum::Args as AutoVacuumArgs;
 use change_tracking::Args as ChangeTrackingArgs;
 use change_tracking::ChangeTrackingSuite;
+use vacuum2::Args as Vacuum2Args;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -28,6 +30,7 @@ enum Commands {
     ExplicitTxn,
     MultiTableInsert,
     AutoVacuum(AutoVacuumArgs),
+    Vacuum2(Vacuum2Args),
 }
 
 #[tokio::main]
@@ -45,5 +48,6 @@ async fn main() -> Result<()> {
         Commands::ExplicitTxn => explict_txn::run(dsn).await,
         Commands::MultiTableInsert => multi_table_insert::run(dsn).await,
         Commands::AutoVacuum(cmd_args) => auto_vacuum::run(cmd_args, dsn).await,
+        Commands::Vacuum2(cmd_args) => vacuum2::run(cmd_args, dsn).await,
     }
 }

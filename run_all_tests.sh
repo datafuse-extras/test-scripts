@@ -9,6 +9,8 @@ TEST_TARGETS=(
               "change-tracking --clustered-table --append-only-stream"
               "explicit-txn" "multi-table-insert"
               "auto-vacuum"
+	      "vacuum2"
+	      "vacuum2 --explicit-txn"
               )
 
 for TEST_SUB_COMMAND in "${TEST_TARGETS[@]}"; do
