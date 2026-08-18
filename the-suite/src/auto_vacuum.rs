@@ -70,7 +70,6 @@ impl AutoVacuumSuite {
                 h VARCHAR NULL
             ) CLUSTER BY linear(id)
               BLOCK_SIZE_THRESHOLD='419430400'
-              CLUSTER_TYPE='linear'
               COMPRESSION='zstd'
               DATA_RETENTION_NUM_SNAPSHOTS_TO_KEEP='3'",
             "CREATE OR REPLACE TABLE r LIKE test ENGINE = random",
